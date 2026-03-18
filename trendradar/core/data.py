@@ -10,6 +10,7 @@
 Author: TrendRadar Team
 """
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Callable
 
@@ -173,6 +174,141 @@ def read_all_today_titles(
     else:
         print("[存储] 当天暂无数据")
 
+    return all_results, final_id_to_name, title_info
+
+
+def _parse_date_folder(folder_name: str) -> Optional[datetime]:
+    """解析日期目录名，支持 ISO 与中文格式。"""
+    for fmt in ("%Y-%m-%d", "%Y年%m月%d日"):
+        try:
+            return datetime.strptime(folder_name, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _list_date_range_strings(
+    storage_manager,
+    start_date: str,
+    end_date: Optional[str] = None,
+) -> List[str]:
+    """列出指定日期范围内、本地已存在的数据日期。"""
+    try:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"无效的开始日期格式: {start_date}，应为 YYYY-MM-DD")
+
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"无效的结束日期格式: {end_date}，应为 YYYY-MM-DD")
+    else:
+        end_dt = datetime.now()
+
+    if start_dt > end_dt:
+        raise ValueError(f"开始日期 {start_date} 不能晚于结束日期 {end_dt.strftime('%Y-%m-%d')}")
+
+    data_dir = Path(getattr(storage_manager, "data_dir", "output"))
+    if not data_dir.exists():
+        return []
+
+    available_dates = []
+    current = start_dt
+    while current <= end_dt:
+        date_str = current.strftime("%Y-%m-%d")
+        if (data_dir / date_str).exists():
+            available_dates.append(date_str)
+        current += timedelta(days=1)
+
+    if available_dates:
+        return available_dates
+
+    # 兼容旧中文目录名
+    for child in data_dir.iterdir():
+        if not child.is_dir():
+            continue
+        parsed = _parse_date_folder(child.name)
+        if parsed and start_dt.date() <= parsed.date() <= end_dt.date():
+            available_dates.append(parsed.strftime("%Y-%m-%d"))
+
+    return sorted(set(available_dates))
+
+
+def read_titles_from_date_range(
+    storage_manager,
+    start_date: str,
+    end_date: Optional[str] = None,
+    current_platform_ids: Optional[List[str]] = None,
+) -> Tuple[Dict, Dict, Dict]:
+    """
+    从存储后端读取指定日期范围内的所有标题，并合并为一个分析视图。
+    """
+    date_strings = _list_date_range_strings(storage_manager, start_date, end_date)
+    if not date_strings:
+        return {}, {}, {}
+
+    all_results: Dict = {}
+    final_id_to_name: Dict = {}
+    title_info: Dict = {}
+
+    for date_str in date_strings:
+        news_data = storage_manager.get_today_all_data(date_str)
+        if not news_data or not news_data.items:
+            continue
+
+        for source_id, news_list in news_data.items.items():
+            if current_platform_ids is not None and source_id not in current_platform_ids:
+                continue
+
+            source_name = news_data.id_to_name.get(source_id, source_id)
+            final_id_to_name[source_id] = source_name
+            all_results.setdefault(source_id, {})
+            title_info.setdefault(source_id, {})
+
+            for item in news_list:
+                title = item.title
+                ranks = list(getattr(item, "ranks", [item.rank]) or [item.rank])
+                first_time = f"{date_str} {getattr(item, 'first_time', item.crawl_time)}"
+                last_time = f"{date_str} {getattr(item, 'last_time', item.crawl_time)}"
+                count = getattr(item, "count", 1)
+
+                existing = title_info[source_id].get(title)
+                if existing:
+                    merged_ranks = existing["ranks"][:]
+                    for rank in ranks:
+                        if rank not in merged_ranks:
+                            merged_ranks.append(rank)
+                    merged_ranks.sort()
+
+                    existing["first_time"] = min(existing["first_time"], first_time)
+                    existing["last_time"] = max(existing["last_time"], last_time)
+                    existing["count"] += count
+                    existing["ranks"] = merged_ranks
+                    if not existing.get("url") and item.url:
+                        existing["url"] = item.url
+                    if not existing.get("mobileUrl") and item.mobile_url:
+                        existing["mobileUrl"] = item.mobile_url
+                else:
+                    title_info[source_id][title] = {
+                        "first_time": first_time,
+                        "last_time": last_time,
+                        "count": count,
+                        "ranks": sorted(set(ranks)),
+                        "url": item.url or "",
+                        "mobileUrl": item.mobile_url or "",
+                    }
+
+                all_results[source_id][title] = {
+                    "ranks": title_info[source_id][title]["ranks"],
+                    "url": title_info[source_id][title]["url"],
+                    "mobileUrl": title_info[source_id][title]["mobileUrl"],
+                }
+
+    total_count = sum(len(titles) for titles in all_results.values())
+    print(
+        f"[存储] 已从 {start_date} 到 {(end_date or datetime.now().strftime('%Y-%m-%d'))} 读取 {total_count} 条去重标题"
+    )
     return all_results, final_id_to_name, title_info
 
 
