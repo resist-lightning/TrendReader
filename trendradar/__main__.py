@@ -322,7 +322,12 @@ class NewsAnalyzer:
 
         # HTML生成（如果启用）
         html_file = None
-        if self.ctx.config["STORAGE"]["FORMATS"]["HTML"]:
+        html_enabled = self.ctx.config["STORAGE"]["FORMATS"]["HTML"]
+        if not html_enabled and self.storage_manager.backend_name == "local":
+            print("⚠️ 检测到本地运行且 HTML 已关闭，仍会生成 HTML 报告便于网页查看")
+            html_enabled = True
+
+        if html_enabled:
             html_file = self.ctx.generate_html(
                 stats,
                 total_titles,
