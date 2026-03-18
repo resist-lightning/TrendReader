@@ -235,13 +235,23 @@ class NewsAnalyzer:
             # 获取当前配置的监控平台ID列表
             current_platform_ids = self.ctx.platform_ids
             print(f"当前监控平台: {current_platform_ids}")
+            report_start_date = self.ctx.config.get("REPORT_START_DATE", "")
 
-            all_results, id_to_name, title_info = self.ctx.read_today_titles(
-                current_platform_ids
-            )
+            if report_start_date:
+                print(f"报告统计范围: {report_start_date} 至今天")
+                all_results, id_to_name, title_info = self.ctx.read_titles_in_range(
+                    report_start_date, platform_ids=current_platform_ids
+                )
+            else:
+                all_results, id_to_name, title_info = self.ctx.read_today_titles(
+                    current_platform_ids
+                )
 
             if not all_results:
-                print("没有找到当天的数据")
+                if report_start_date:
+                    print(f"没有找到 {report_start_date} 至今天 的数据")
+                else:
+                    print("没有找到当天的数据")
                 return None
 
             total_titles = sum(len(titles) for titles in all_results.values())
