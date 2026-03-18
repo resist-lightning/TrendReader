@@ -75,6 +75,7 @@ def _load_report_config(config_data: Dict) -> Dict:
         "SORT_BY_POSITION_FIRST": sort_by_position_env if sort_by_position_env is not None else report_config.get("sort_by_position_first", False),
         "MAX_NEWS_PER_KEYWORD": max_news_env or report_config.get("max_news_per_keyword", 0),
         "REVERSE_CONTENT_ORDER": reverse_content_env if reverse_content_env is not None else report_config.get("reverse_content_order", False),
+        "REPORT_START_DATE": _get_env_str("REPORT_START_DATE") or report_config.get("start_date", ""),
     }
 
 
