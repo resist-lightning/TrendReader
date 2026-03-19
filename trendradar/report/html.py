@@ -423,23 +423,6 @@ def render_html_content(
                 line-height: 1.6;
             }
 
-            .footer-link {
-                color: #4f46e5;
-                text-decoration: none;
-                font-weight: 500;
-                transition: color 0.2s ease;
-            }
-
-            .footer-link:hover {
-                color: #7c3aed;
-                text-decoration: underline;
-            }
-
-            .project-name {
-                font-weight: 600;
-                color: #374151;
-            }
-
             @media (max-width: 480px) {
                 body { padding: 12px; }
                 .header { padding: 24px 20px; }
@@ -718,15 +701,10 @@ def render_html_content(
             </div>
 
             <div class="footer">
-                <div class="footer-content">
-                    由 <span class="project-name">TrendRadar</span> 生成 ·
-                    <a href="https://github.com/sansan0/TrendRadar" target="_blank" class="footer-link">
-                        GitHub 开源项目
-                    </a>"""
+                <div class="footer-content">"""
 
     if update_info:
         html += f"""
-                    <br>
                     <span style="color: #ea580c; font-weight: 500;">
                         发现新版本 {update_info['remote_version']}，当前版本 {update_info['current_version']}
                     </span>"""

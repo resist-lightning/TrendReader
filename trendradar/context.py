@@ -21,6 +21,7 @@ from trendradar.core import (
     matches_word_groups,
     save_titles_to_file,
     read_all_today_titles,
+    read_titles_from_date_range,
     detect_latest_new_titles,
     is_first_crawl_today,
     count_word_frequency,
@@ -171,6 +172,17 @@ class AppContext:
     ) -> Tuple[Dict, Dict, Dict]:
         """读取当天所有标题"""
         return read_all_today_titles(self.get_storage_manager(), platform_ids)
+
+    def read_titles_in_range(
+        self,
+        start_date: str,
+        end_date: Optional[str] = None,
+        platform_ids: Optional[List[str]] = None,
+    ) -> Tuple[Dict, Dict, Dict]:
+        """读取指定日期范围内的标题。"""
+        return read_titles_from_date_range(
+            self.get_storage_manager(), start_date, end_date, platform_ids
+        )
 
     def detect_new_titles(
         self, platform_ids: Optional[List[str]] = None
